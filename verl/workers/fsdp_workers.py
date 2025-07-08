@@ -735,8 +735,11 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
 
             prompts = self.rollout_sharding_manager.preprocess_data(prompts)
             with simple_timer("generate_sequences", timing_generate):
-                output = self.rollout.generate_sequences(prompts=prompts)
-
+                if "rollout_n" in prompts.meta_info:
+                    assert prompts.meta_info["rollout_n"] >= 1
+                    output = self.rollout.generate_sequences(prompts, n=prompts.meta_info["rollout_n"])
+                else:
+                    output = self.rollout.generate_sequences(prompts=prompts)
             log_gpu_memory_usage("After rollout generation", logger=logger)
 
             output = self.rollout_sharding_manager.postprocess_data(output)

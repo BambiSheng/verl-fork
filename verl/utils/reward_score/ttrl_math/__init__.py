@@ -32,6 +32,8 @@ from sympy.parsing import sympy_parser
 from sympy.parsing.latex import parse_latex
 from sympy.parsing.sympy_parser import parse_expr
 import traceback
+from collections import Counter
+from typing import List
 
 """
 This code is adapted from Entropy Machanism Recipe (https://github.com/volcengine/verl/tree/main/recipe/entropy/).
@@ -1024,16 +1026,34 @@ def grade(model_answer: str, gt_answer: str, fast: bool = True):
         )
     return correct
 
+@timeout_ours(timeout_seconds=10)
+def simplify_expression_string(expression_string: str, timeout_seconds: int = 10) -> str:
+    try:
+        sympy_expr = parse_expr(expression_string, transformations="all", evaluate=False)
+        simplified_expr = simplify(sympy_expr)
+        return str(simplified_expr)
+    except TimeoutError:
+        return expression_string
+    except Exception as e:
+        try:
+            sympy_expr = latex2sympy(expression_string)
+            simplified_expr = simplify(sympy_expr)
+            return str(simplified_expr)
+        except TimeoutError:
+            return expression_string
+        except Exception as e:
+            return expression_string
 
 def compute_score(model_response, gt_answer, fast=False):
     model_answer = extract_answer(model_response)
+    model_answer = simplify_expression_string(model_answer)
     if model_answer is None:
         return {
             "score": 0.0,
             "format_score": 0.0,
             "acc": False,
             "extracted_gt": gt_answer,
-            # "extracted_pred": None,
+            "pred": "",
         }
         # return 0.0, 0.0  # Cannot even parse anything.
     is_correct = False
@@ -1051,7 +1071,7 @@ def compute_score(model_response, gt_answer, fast=False):
             "format_score": 1.0,
             "acc": True,
             "extracted_gt": gt_answer,
-            # "extracted_pred": None,
+            "pred": model_answer,
         }
     else:
         return {
@@ -1059,9 +1079,22 @@ def compute_score(model_response, gt_answer, fast=False):
             "format_score": 1.0,
             "acc": False,
             "extracted_gt": gt_answer,
-            # "extracted_pred": None,
+            "pred": model_answer,
         }
 
+def majority_vote(model_outputs: List[str]) -> str:
+    assert len(model_outputs) > 0
+    model_answers = [extract_answer(generated_text) for generated_text in model_outputs]
+    model_answers = [answer for answer in model_answers if answer is not None]
+    model_answers = [simplify_expression_string(answer) for answer in model_answers]
+    if len(model_answers) == 0:
+        return "None"
+    
+    counter = Counter(model_answers)
+    
+    majority_answer, _ = counter.most_common(1)[0]
+
+    return majority_answer
 
 def ttrl_reward_func(
     data_source, solution_str, ground_truth, extra_info=None, sandbox_fusion_url=None, concurrent_semaphore=None
@@ -1079,3 +1112,22 @@ def ttrl_reward_func(
         print(f"[ERROR] Error in process_completion for task : {str(e)}")
         traceback.print_exc()
         raise
+
+def ttrl_maj_vote_fn(model_outputs: List[str], n_votes_per_prompt: int) -> List[str]:
+    """
+    Used to generate the ground truth for TTRL.
+    Input:
+        model_outputs: list of str
+        n_votes_per_prompt: int
+    Output: 
+        maj_vote_gt: list of str
+    """
+    maj_vote_gt = []
+    assert len(model_outputs) % n_votes_per_prompt == 0
+    n_prompts = len(model_outputs) // n_votes_per_prompt
+    for i in range(n_prompts):
+        prompt_outputs = model_outputs[i * n_votes_per_prompt:(i + 1) * n_votes_per_prompt]
+        prompt_gt = majority_vote(prompt_outputs)
+        maj_vote_gt.append(prompt_gt)
+
+    return maj_vote_gt
