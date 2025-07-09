@@ -737,7 +737,7 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
             with simple_timer("generate_sequences", timing_generate):
                 if "rollout_n" in prompts.meta_info:
                     assert prompts.meta_info["rollout_n"] >= 1
-                    output = self.rollout.generate_sequences(prompts, n=prompts.meta_info["rollout_n"])
+                    output = self.rollout.generate_sequences(prompts=prompts, n=prompts.meta_info["rollout_n"])
                 else:
                     output = self.rollout.generate_sequences(prompts=prompts)
             log_gpu_memory_usage("After rollout generation", logger=logger)
