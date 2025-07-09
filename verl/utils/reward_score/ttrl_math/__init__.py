@@ -1105,7 +1105,7 @@ def _compute_ttrl_metric(
     ):    
     assert len(ttrl_reward) == len(gt_reward)
 
-    hit_rate = 1.0 if compute_score(ttrl_label, gt_label)["acc"] else 0.0    
+    hit_rate = 1.0 if grade(ttrl_label, gt_label) else 0.0    
     rewards_hit_rate = 0
     for estimate_reward, true_reward in zip(ttrl_reward, gt_reward):
         if estimate_reward == true_reward:
@@ -1116,6 +1116,7 @@ def _compute_ttrl_metric(
         "label_accuracy": hit_rate,
         "reward_accuracy": rewards_hit_rate,
         "majority_voting_reward": sum(ttrl_reward) / len(ttrl_reward),
+        "ground_truth_reward": sum(gt_reward) / len(gt_reward),
         f"pass@{len(ttrl_reward)}": 1.0 if sum(gt_reward) >= 1 else 0.0,
     }
     return ttrl_metric
