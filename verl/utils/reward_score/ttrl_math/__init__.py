@@ -1082,47 +1082,7 @@ def compute_score(model_response, gt_answer, fast=False):
             "pred": model_answer,
         }
 
-def _majority_vote(model_outputs: List[str]) -> str:
-    assert len(model_outputs) > 0
-    model_answers = [extract_answer(generated_text) for generated_text in model_outputs]
-    model_answers = [answer for answer in model_answers if answer is not None]
-    model_answers = [simplify_expression_string(answer) for answer in model_answers]
-    if len(model_answers) == 0:
-        return "None"
-    
-    counter = Counter(model_answers)
-    
-    majority_answer, majority_count = counter.most_common(1)[0]
-    majority_ratio = majority_count / len(model_outputs)
-    
-    return majority_answer, majority_ratio
-
-def _compute_ttrl_metric(
-    ttrl_reward: List[float],
-    gt_reward: List[float],
-    ttrl_label: str,
-    gt_label: str,
-    ):    
-    assert len(ttrl_reward) == len(gt_reward)
-
-    hit_rate = 1.0 if grade(ttrl_label, gt_label) else 0.0    
-    rewards_hit_rate = 0
-    for estimate_reward, true_reward in zip(ttrl_reward, gt_reward):
-        if estimate_reward == true_reward:
-            rewards_hit_rate += 1
-    rewards_hit_rate = rewards_hit_rate / len(ttrl_reward)
-    
-    ttrl_metric = {
-        "label_accuracy": hit_rate,
-        "reward_accuracy": rewards_hit_rate,
-        "majority_voting_reward": sum(ttrl_reward) / len(ttrl_reward),
-        "ground_truth_reward": sum(gt_reward) / len(gt_reward),
-        f"pass@{len(ttrl_reward)}": 1.0 if sum(gt_reward) >= 1 else 0.0,
-    }
-    return ttrl_metric
-
-
-def ttrl_reward_func(
+def reward_func(
     data_source, solution_str, ground_truth, extra_info=None, sandbox_fusion_url=None, concurrent_semaphore=None
 ):
     try:
@@ -1138,59 +1098,3 @@ def ttrl_reward_func(
         print(f"[ERROR] Error in process_completion for task : {str(e)}")
         traceback.print_exc()
         raise
-
-def ttrl_maj_vote_fn(model_outputs: List[str], n_votes_per_prompt: int) -> List[str]:
-    """
-    Used to generate the ground truth for TTRL.
-    Input:
-        model_outputs: list of str
-        n_votes_per_prompt: int
-    Output: 
-        maj_vote_gt: list of str
-    """
-    maj_vote_gt = []
-    maj_vote_ratio = []
-    assert len(model_outputs) % n_votes_per_prompt == 0
-    n_prompts = len(model_outputs) // n_votes_per_prompt
-    for i in range(n_prompts):
-        prompt_outputs = model_outputs[i * n_votes_per_prompt:(i + 1) * n_votes_per_prompt]
-        prompt_gt, prompt_maj_vote_ratio = _majority_vote(prompt_outputs)
-        maj_vote_gt.append(prompt_gt)
-        maj_vote_ratio.append(prompt_maj_vote_ratio)
-        
-    return maj_vote_gt, maj_vote_ratio
-
-
-def ttrl_metrics_fn(
-    ttrl_reward: List[float],
-    gt_reward: List[float],
-    ttrl_label: List[str],
-    gt_label: List[str],
-    n_samples_per_prompt: int,
-):
-    """
-    Compute the TTRL metrics for batch inputs.
-    """
-    assert len(ttrl_reward) == len(gt_reward) == len(ttrl_label) == len(gt_label)
-    assert len(ttrl_reward) % n_samples_per_prompt == 0
-    n_prompts = len(ttrl_reward) // n_samples_per_prompt
-    ttrl_metrics = []
-    for i in range(n_prompts):
-        prompt_ttrl_reward = ttrl_reward[i * n_samples_per_prompt:(i + 1) * n_samples_per_prompt]
-        prompt_gt_reward = gt_reward[i * n_samples_per_prompt:(i + 1) * n_samples_per_prompt]
-        prompt_ttrl_label = ttrl_label[i * n_samples_per_prompt:(i + 1) * n_samples_per_prompt]
-        prompt_gt_label = gt_label[i * n_samples_per_prompt:(i + 1) * n_samples_per_prompt]
-
-        assert Counter(prompt_ttrl_label).most_common(1)[0][1] == n_samples_per_prompt
-        assert Counter(prompt_gt_label).most_common(1)[0][1] == n_samples_per_prompt
-
-        prompt_ttrl_label = prompt_ttrl_label[0]
-        prompt_gt_label = prompt_gt_label[0]
-
-        ttrl_metric = _compute_ttrl_metric(prompt_ttrl_reward, prompt_gt_reward, prompt_ttrl_label, prompt_gt_label)
-        ttrl_metrics.append(ttrl_metric)
-
-    # Compute the average metrics
-    ttrl_metrics = {k: sum(d[k] for d in ttrl_metrics) / len(ttrl_metrics) for k in ttrl_metrics[0]}
-
-    return ttrl_metrics
