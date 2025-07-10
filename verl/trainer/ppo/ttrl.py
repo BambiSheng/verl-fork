@@ -16,7 +16,7 @@ from verl.utils.reward_score.ttrl_math import ttrl_maj_vote_fn, ttrl_metrics_fn
 
 def select_top_k_per_prompt(data, n_votes_per_prompt, n_samples_per_prompt):
     """
-    Select the first k rollouts per prompt, used for TTRL downsampling
+    Select the first k rollouts per prompt, used for TTRL downsampling.
     """
     assert len(data) % n_votes_per_prompt == 0, "data length must be divisible by n_votes_per_prompt"
     num_prompts = len(data) // n_votes_per_prompt
@@ -30,7 +30,7 @@ def select_top_k_per_prompt(data, n_votes_per_prompt, n_samples_per_prompt):
     
 def apply_ttrl_gt(batch, gen_batch_output, n_votes_per_prompt, tokenizer):
     """
-    Apply the majority vote ground truth to the batch
+    Apply the majority vote ground truth to the batch.
     """
     assert len(gen_batch_output) % n_votes_per_prompt == 0, "gen_batch_output length must be divisible by n_votes_per_prompt"
     num_prompts = len(gen_batch_output) // n_votes_per_prompt
@@ -65,7 +65,7 @@ def apply_ttrl_gt(batch, gen_batch_output, n_votes_per_prompt, tokenizer):
 
 def apply_original_gt(batch):
     """
-    Apply the original ground truth to the batch
+    Apply the original ground truth to the batch.
     """
     for i in range(len(batch)):
         data_item = batch[i]
@@ -76,7 +76,7 @@ def apply_original_gt(batch):
 
 def compute_ttrl_metrics(batch, n_samples_per_prompt):
     """
-    Compute the TTRL metrics
+    Compute the TTRL metrics.
     """
     assert len(batch) % n_samples_per_prompt == 0, "batch length must be divisible by n_samples_per_prompt"
     num_prompts = len(batch) // n_samples_per_prompt
