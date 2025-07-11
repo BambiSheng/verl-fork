@@ -66,7 +66,7 @@ def simplify_expression_string(expression_string: str) -> str:
 
 def compute_score(model_response, gt_answer, fast=False):
     model_answer = extract_answer(model_response)
-    model_answer = simplify_expression_string(model_answer)
+
     if model_answer is None:
         return {
             "score": 0.0,

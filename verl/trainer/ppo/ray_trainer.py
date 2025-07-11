@@ -1136,8 +1136,10 @@ class RayPPOTrainer:
                     with marked_timer("gen", timing_raw, color="red"):
                         if self.config.ttrl.enable:
                             from verl.trainer.ppo.ttrl_utils import select_top_k_per_prompt, apply_ttrl_gt
-                            gen_batch.meta_info["rollout_n"] = self.config.ttrl.n_votes_per_prompt
+
+                            gen_batch.meta_info["kwargs"] = {"n": self.config.ttrl.n_votes_per_prompt}
                             gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
+
                             assert len(gen_batch_output) == len(batch) * self.config.ttrl.n_votes_per_prompt
 
                             batch = apply_ttrl_gt(batch, gen_batch_output, n_votes_per_prompt=self.config.ttrl.n_votes_per_prompt, tokenizer=self.tokenizer)
