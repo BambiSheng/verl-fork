@@ -1142,7 +1142,7 @@ class RayPPOTrainer:
 
                             assert len(gen_batch_output) == len(batch) * self.config.ttrl.n_votes_per_prompt
 
-                            batch = apply_ttrl_gt(batch, gen_batch_output, n_votes_per_prompt=self.config.ttrl.n_votes_per_prompt, tokenizer=self.tokenizer)
+                            batch = apply_ttrl_gt(batch, gen_batch_output, self.config.ttrl.n_votes_per_prompt, self.tokenizer)
                             gen_batch_output = select_top_k_per_prompt(gen_batch_output, self.config.ttrl.n_votes_per_prompt, self.config.ttrl.n_samples_per_prompt)
 
                             assert len(gen_batch_output) == len(batch) * self.config.ttrl.n_samples_per_prompt
@@ -1281,7 +1281,7 @@ class RayPPOTrainer:
                             reward_tensor_original, reward_extra_infos_dict_original = compute_reward(batch, self.reward_fn)
                             batch.batch["token_level_scores_original"] = reward_tensor_original
                             #TODO compute ttrl metrics
-                            ttrl_metrics = compute_ttrl_metrics(batch, n_samples_per_prompt=self.config.ttrl.n_samples_per_prompt)
+                            ttrl_metrics = compute_ttrl_metrics(batch, self.config.ttrl.n_samples_per_prompt)
                             for key, value in ttrl_metrics.items():
                                 metrics.update({f"train/{key}": value})
 
