@@ -1134,12 +1134,25 @@ class RayPPOTrainer:
                 with marked_timer("step", timing_raw):
                     # generate a batch
                     with marked_timer("gen", timing_raw, color="red"):
-                        if not self.async_rollout_mode:
+                        if self.config.ttrl.enable:
+                            from verl.trainer.ppo.ttrl_utils import select_top_k_per_prompt, apply_ttrl_gt
+
+                            gen_batch.meta_info["kwargs"] = {"n": self.config.ttrl.n_votes_per_prompt}
                             gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
+
+                            assert len(gen_batch_output) == len(batch) * self.config.ttrl.n_votes_per_prompt
+
+                            batch = apply_ttrl_gt(batch, gen_batch_output, self.config.ttrl.n_votes_per_prompt, self.tokenizer)
+                            gen_batch_output = select_top_k_per_prompt(gen_batch_output, self.config.ttrl.n_votes_per_prompt, self.config.ttrl.n_samples_per_prompt)
+
+                            assert len(gen_batch_output) == len(batch) * self.config.ttrl.n_samples_per_prompt
                         else:
-                            # vllm should set async_rollout_mode to enable async rollout
-                            # sglang turns on async_rollout_mode by default
-                            gen_batch_output = self.async_rollout_manager.generate_sequences(gen_batch)
+                            if not self.async_rollout_mode:
+                                gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
+                            else:
+                                # vllm should set async_rollout_mode to enable async rollout
+                                # sglang turns on async_rollout_mode by default
+                                gen_batch_output = self.async_rollout_manager.generate_sequences(gen_batch)
                         timing_raw.update(gen_batch_output.meta_info["timing"])
                         gen_batch_output.meta_info.pop("timing", None)
 
@@ -1261,6 +1274,16 @@ class RayPPOTrainer:
                             metrics.update(kl_metrics)
                         else:
                             batch.batch["token_level_rewards"] = batch.batch["token_level_scores"]
+
+                        if self.config.ttrl.enable:
+                            from verl.trainer.ppo.ttrl_utils import apply_original_gt, compute_ttrl_metrics
+                            batch = apply_original_gt(batch)
+                            reward_tensor_original, reward_extra_infos_dict_original = compute_reward(batch, self.reward_fn)
+                            batch.batch["token_level_scores_original"] = reward_tensor_original
+                            #TODO compute ttrl metrics
+                            ttrl_metrics = compute_ttrl_metrics(batch, self.config.ttrl.n_samples_per_prompt)
+                            for key, value in ttrl_metrics.items():
+                                metrics.update({f"train/{key}": value})
 
                         # compute advantages, executed on the driver process
 
