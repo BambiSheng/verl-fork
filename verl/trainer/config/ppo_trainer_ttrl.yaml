@@ -6,6 +6,13 @@ defaults:
   - ppo_trainer
   - _self_
 
+  
+actor_rollout_ref:
+  actor:
+    # Skip the update if the gradient norm is larger than this value
+    # Thanks to community contribution (https://github.com/volcengine/verl/pull/2328)
+    max_grad_norm: null
+
 ttrl:
   # Whether to enable TTRL, refer to (https://arxiv.org/abs/2504.16084)
   enable: false

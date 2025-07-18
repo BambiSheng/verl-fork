@@ -176,7 +176,7 @@ def _batch_compute_ttrl_metrics(
         prompt_gt_label = gt_label[i * n:(i + 1) * n]
 
         assert Counter(prompt_majority_label).most_common(1)[0][1] == n
-        assert Counter(prompt_gt_label).most_common(1)[0][1]
+        assert Counter(prompt_gt_label).most_common(1)[0][1] == n
 
         prompt_majority_label = prompt_majority_label[0]
         prompt_gt_label = prompt_gt_label[0]

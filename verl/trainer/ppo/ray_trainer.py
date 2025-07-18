@@ -1134,7 +1134,7 @@ class RayPPOTrainer:
                 with marked_timer("step", timing_raw):
                     # generate a batch
                     with marked_timer("gen", timing_raw, color="red"):
-                        if self.config.ttrl.enable:
+                        if self.config.get("ttrl", {}).get("enable", False):
                             from verl.trainer.ppo.ttrl_utils import select_top_k_per_prompt, apply_ttrl_gt
 
                             gen_batch.meta_info["kwargs"] = {"n": self.config.ttrl.n_votes_per_prompt}
@@ -1275,7 +1275,7 @@ class RayPPOTrainer:
                         else:
                             batch.batch["token_level_rewards"] = batch.batch["token_level_scores"]
 
-                        if self.config.ttrl.enable:
+                        if self.config.get("ttrl", {}).get("enable", False):
                             from verl.trainer.ppo.ttrl_utils import apply_original_gt, compute_ttrl_metrics
                             batch = apply_original_gt(batch)
                             reward_tensor_original, reward_extra_infos_dict_original = compute_reward(batch, self.reward_fn)

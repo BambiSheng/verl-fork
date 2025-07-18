@@ -115,6 +115,7 @@ class RLHFDataset(Dataset):
         self.need_tools_kwargs = config.get("need_tools_kwargs", False)
         self.filter_prompts = config.get("filter_prompts", True)
         self.serialize_dataset = False
+        self.suffix_prompt = config.get("suffix_prompt", None)
         self._download()
         self._read_files_and_tokenize()
 
@@ -134,6 +135,10 @@ class RLHFDataset(Dataset):
         self.dataframe: datasets.Dataset = datasets.concatenate_datasets(dataframes)
 
         print(f"dataset len: {len(self.dataframe)}")
+
+        if self.suffix_prompt:
+            print(f"Apply suffix prompt {self.suffix_prompt}")
+            self.dataframe = self.dataframe.map(self._add_suffix_to_entry, num_proc=self.num_workers)
 
         # filter out too long prompts
         if self.filter_overlong_prompts:
@@ -205,7 +210,12 @@ class RLHFDataset(Dataset):
                 message["content"] = content_list
 
         return messages
-
+    
+    def _add_suffix_to_entry(self, entry):
+        # Assuming 'text' is the field where the prompt should be added
+        entry[self.prompt_key][-1]["content"] = entry[self.prompt_key][-1]["content"] + self.suffix_prompt
+        return entry
+    
     def __getitem__(self, item):
         """
         Note that we also return the raw_input_ids so that it can be combined with other chat template
