@@ -15,7 +15,7 @@ from typing import List
 from collections import Counter
 import numpy as np
 from verl.utils.reward_score.ttrl_math import extract_answer, simplify_expression_string, grade
-
+import copy
 
 def select_top_k_per_prompt(data, n_votes_per_prompt, n_samples_per_prompt):
     """
@@ -133,7 +133,8 @@ def compute_ttrl_metrics(batch, n):
     num_prompts = len(batch) // n
 
     # Sort the batch by the ID
-    sorted_batch = sorted(batch, key=lambda x: x.non_tensor_batch["extra_info"]["index"])
+    sorted_batch = copy.deepcopy(batch)
+    sorted_batch = sorted(sorted_batch, key=lambda x: x.non_tensor_batch["extra_info"]["index"])
 
     majority_reward = []
     gt_reward = []
